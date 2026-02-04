@@ -1,7 +1,5 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) 
-from data_scraper.CraftNest import CraftNest
-url     = "https://craftnest.net/collections/cliparts"
-site    = CraftNest()
-site.scrape_categories()
+from data_scraper.SubCategory import SubCategory
+
+if __name__ == "__main__":
+    sub_scraper = SubCategory()
+    sub_scraper.scrape_sub_category()
