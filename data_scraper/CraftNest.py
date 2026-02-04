@@ -5,8 +5,8 @@ from Config import *
 
 
 class CraftNest:
-    def __init__(self,url):
-        self.url            = url
+    def __init__(self):
+        self.url            = "https://craftnest.net"
         self.playwright     = sync_playwright().start()
         self.browser        = self.playwright.chromium.launch(headless=False, args=["--disable-gpu"])
         self.context        = None
@@ -58,3 +58,21 @@ class CraftNest:
         self.context.storage_state(path      = AUTH_FILE)
         print("Auth state saved!")
         print("Site url is :",self.url)
+
+    def scrape_categories(self):
+        self.save_auth()
+        category_links   = []
+        self.page.wait_for_selector("ul.tmenu_nav")
+        categories      = self.page.locator("ul.tmenu_nav > li.tmenu_item")
+        count           = categories.count()
+        #print(count)
+        for index in range(count):
+            item        = categories.nth(index)
+            link        = item.locator("a.tmenu_item_link")
+            href        = link.get_attribute("href")
+            if href.startswith("/"): # begins with specific set of characters. ex : "/"
+                href    = "https://craftnest.net" + href
+            # append sort parameter
+            sorted_href = href + "?sort_by=a-z"
+            category_links.append(sorted_href)
+        return category_links
