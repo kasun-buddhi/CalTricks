@@ -1,5 +1,4 @@
 from playwright.sync_api import sync_playwright
-import os
 from pathlib import Path
 from Config import *
 
@@ -61,7 +60,7 @@ class CraftNest:
 
     def scrape_categories(self):
         self.save_auth()
-        category_links   = []
+        category_links  = []
         self.page.wait_for_selector("ul.tmenu_nav")
         categories      = self.page.locator("ul.tmenu_nav > li.tmenu_item")
         count           = categories.count()
