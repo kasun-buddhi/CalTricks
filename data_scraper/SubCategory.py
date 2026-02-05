@@ -14,13 +14,7 @@ class SubCategory:
         self.page        = self.craftnest.page
         return category_links
     
-    def scrape_sub_category(self):
-        category_links        = self.setup()
-        asset_link_dict       = {}  
-        sub_categories_ul     = "body>main>section>div>div>div>div>div:nth-child(2)>div:nth-child(4)>ul"
-        sub_category_items    = sub_categories_ul + " > li > a"
-        asset_item_selector   = "body >main> section> div> div> div> div> div:nth-child(4)> div >div:nth-child(2)> div > div"
-        def scroll_until_no_new_content(page, selector):
+    def __scroll_until_no_new_content(self,page, selector):
             previous_count    = 0
             no_change_count   = 0
             for scroll_num in range(100):
@@ -39,6 +33,13 @@ class SubCategory:
                 else:
                     no_change_count = 0
                 previous_count = new_count
+    
+    def scrape_sub_category(self):
+        category_links        = self.setup()
+        asset_link_dict       = {}  
+        sub_categories_ul     = "body>main>section>div>div>div>div>div:nth-child(2)>div:nth-child(4)>ul"
+        sub_category_items    = sub_categories_ul + " > li > a"
+        asset_item_selector   = "body >main> section> div> div> div> div> div:nth-child(4)> div >div:nth-child(2)> div > div"
         for link in category_links:
             print("Visiting category:", link)
             self.page.goto(link, wait_until="domcontentloaded")
@@ -60,7 +61,7 @@ class SubCategory:
                 print(f"Opening sub-category {idx}/{len(sub_urls)}: {name}")
                 print("URL:", sub_url)
                 self.page.goto(sub_url, wait_until="domcontentloaded")
-                scroll_until_no_new_content(self.page, asset_item_selector)
+                self.__scroll_until_no_new_content(self.page, asset_item_selector)
                 self.page.wait_for_timeout(1200)
                 # Get all assets in this sub-category
                 assets = self.page.query_selector_all(asset_item_selector)
