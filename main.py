@@ -1,5 +1,11 @@
+from data_scraper.CraftNest import CraftNest
 from data_scraper.SubCategory import SubCategory
+from data_scraper.Asset import Asset
 
-if __name__ == "__main__":
-    sub_scraper = SubCategory()
-    sub_scraper.scrape_sub_category()
+
+craft = CraftNest()
+
+# All classes reuse the same browser + same page
+sub         = SubCategory(craft)
+asset       = Asset(craft)
+asset_links = asset.setup()
