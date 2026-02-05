@@ -4,8 +4,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data_scraper.CraftNest import CraftNest
 
 class SubCategory:
-    def __init__(self):
-        self.craftnest  = CraftNest()
+    def __init__(self,craftnest):
+        self.craftnest  = craftnest
         self.page       = None
     
     def setup(self):
@@ -15,20 +15,30 @@ class SubCategory:
         return category_links
     
     def scrape_sub_category(self):
-        category_links       = self.setup()
-        asset_link_list      = []
-        sub_categories_ul    = "body>main>section>div>div>div>div>div:nth-child(2)>div:nth-child(4)>ul"
-        sub_category_items   = sub_categories_ul + " > li > a"
-        asset_item_selector  = "body >main> section> div> div> div> div> div:nth-child(4)> div >div:nth-child(2)> div > div"
-        def scroll_until_no_new_content(page):
-            previous_height  = None
-            while True:
-                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                page.wait_for_timeout(2000)  # wait a bit for content to load
-                new_height    = page.evaluate("document.body.scrollHeight")
-                if new_height == previous_height:
-                    break
-                previous_height = new_height
+        category_links        = self.setup()
+        asset_link_dict       = {}  
+        sub_categories_ul     = "body>main>section>div>div>div>div>div:nth-child(2)>div:nth-child(4)>ul"
+        sub_category_items    = sub_categories_ul + " > li > a"
+        asset_item_selector   = "body >main> section> div> div> div> div> div:nth-child(4)> div >div:nth-child(2)> div > div"
+        def scroll_until_no_new_content(page, selector):
+            previous_count    = 0
+            no_change_count   = 0
+            for scroll_num in range(100):
+                # Get current count
+                current_count = len(page.query_selector_all(selector))
+                page.evaluate("""window.scrollBy({top: window.innerHeight,behavior: 'smooth'});""")
+                page.wait_for_timeout(3000)  # Wait 3 seconds after each scroll
+                # Check new count
+                new_count  = len(page.query_selector_all(selector))
+                print(f"Scroll {scroll_num + 1}: Items loaded: {new_count}")
+                if new_count == previous_count:
+                    no_change_count += 1
+                    if no_change_count >= 3:
+                        print(f"  Final count: {new_count}")
+                        break
+                else:
+                    no_change_count = 0
+                previous_count = new_count
         for link in category_links:
             print("Visiting category:", link)
             self.page.goto(link, wait_until="domcontentloaded")
@@ -50,7 +60,7 @@ class SubCategory:
                 print(f"Opening sub-category {idx}/{len(sub_urls)}: {name}")
                 print("URL:", sub_url)
                 self.page.goto(sub_url, wait_until="domcontentloaded")
-                scroll_until_no_new_content(self.page)
+                scroll_until_no_new_content(self.page, asset_item_selector)
                 self.page.wait_for_timeout(1200)
                 # Get all assets in this sub-category
                 assets = self.page.query_selector_all(asset_item_selector)
@@ -59,9 +69,11 @@ class SubCategory:
                     a_tag = asset.query_selector("a")
                     if a_tag:
                         asset_link = a_tag.get_attribute("href")
-                        print(f"{i}.{asset_link}")
-                        asset_link_list.append({
-                            "sub_category" : sub_url,
-                            "asset"        : asset_link
-                        })
-            return asset_link_list
+                        # Make full URL
+                        full_url = "https://craftnest.net" + asset_link
+                        print(f"{i}.{full_url}")
+                        # Add to dictionary
+                        if sub_url not in asset_link_dict:
+                            asset_link_dict[sub_url] = []
+                        asset_link_dict[sub_url].append(full_url)
+        return asset_link_dict
