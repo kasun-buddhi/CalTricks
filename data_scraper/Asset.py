@@ -18,21 +18,24 @@ class Asset:
         # Returns: afro-american-clipart
         if '/collections/' in url:
             # Remove query parameters
-            clean_url   = url.split('?')[0]
+            clean_url      = url.split('?')[0]
             # Get the part after /collections/
-            parts       = clean_url.split('/collections/')[-1].split('/')
+            parts          = clean_url.split('/collections/')[-1].split('/')
             if len(parts) >= 2:
                 # Return last two parts: category/sub-category
-                return f"{parts[0]}/{parts[1]}"
-            elif len(parts) == 1:
+                folder_name  = f"{parts[0]}/{parts[1]}"
+            elif len(parts)  == 1:
                 # Only category
-                return parts[0]
+                folder_name = parts[0]
+            else:
+                return "unknown"
+            return folder_name.replace('-','_')
         return "unknown"
     
     def download_asset(self):
-        download_button_selector = "body>main>section>section>div>div>div:nth-child(2)>div:nth-child(4)>a"
-        new_download_selector    = "body>astro-island>div>div>div:nth-child(1)>div:nth-child(2)>div>div>nav>ol>li>button>span"
-        zip_download_selector    = "body>div>div"
+        download_button_selector  = "body>main>section>section>div>div>div:nth-child(2)>div:nth-child(4)>a"
+        new_download_selector     = "body>astro-island>div>div>div:nth-child(1)>div:nth-child(2)>div>div>nav>ol>li>button>span"
+        zip_download_selector     = "body>div>div"
         # Ensure base folder exists
         os.makedirs(DOWNLOAD_ASSET_LOCATION, exist_ok=True)
         # Iterate over the generator
@@ -74,4 +77,4 @@ class Asset:
                         continue
                 print(f"Completed sub-category: {sub_category_url}")
         print("All downloads completed!")
-        self.browser.close()
+        self.browser.close()    
