@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Config import *
 
@@ -28,7 +29,7 @@ class Asset:
                 #print(folder_name)
                 return folder_name.replace('-','_')
             return "unknown"   
-        
+
     def _save_file_local(self, download, download_dir):
         """
         Save downloaded file to local directory
@@ -81,5 +82,28 @@ class Asset:
                         continue  
                 except Exception as e:
                     print(f"Error downloading {asset_url}: {e}")
+                    self._save_links_to_json(asset_url, "failed")
                     continue   
                 print(f"Completed download sub category : {sub_category_url}")
+                self._save_links_to_json(asset_url, "done")
+    
+    def _save_links_to_json(self, url, status="pending"):
+        file_path   = "links.json"
+        # Create JSON file if it doesn't exist
+        if not os.path.exists(file_path):
+            with open(file_path, "w") as f:
+                json.dump({"links": []}, f, indent=4)
+        # Load existing data
+        with open(file_path, "r") as f:
+            data = json.load(f)
+        # Add the new link(s)
+        if isinstance(url, list):
+            for u in url:
+                data["links"].append({"url": u, "status": status})
+        else:
+            data["links"].append({"url": url, "status": status})
+        # Save back
+        with open(file_path, "w") as f:
+            json.dump(data, f, indent=4)
+        link_count = len(url) if isinstance(url, list) else 1
+        
