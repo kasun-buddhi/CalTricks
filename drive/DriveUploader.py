@@ -4,6 +4,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.http import MediaFileUpload
 import os
+import shutil
 from Config import *
 
 
@@ -38,20 +39,16 @@ class DriveUploader:
     
     def check_exists(self, name, parent_id, is_folder=False):
         """Check if a file or folder already exists in Google Drive"""
-        # mime        = Multipurpose Internet Mail Extensions
-        mime_type     = 'application/vnd.google-apps.folder'
+        # Build the query
+        query = f"name='{name}' and '{parent_id}' in parents and trashed = false"
+        # Add MIME type filter for folders only
         if is_folder:
-            mime_type = "application/vnd.google-apps.folder"
-        else :
-            mime_type = None
-        query         = f"name='{name}' and '{parent_id}' in parents and trashed = false"
-        if mime_type:
-            query    += f"and mimeType='{mime_type}'"
-        results       = self.service.files().list(
-            q         = query,
-            fields    = 'files(id, name)',
-            pageSize  = 1).execute()
-        files         = results.get('files', [])
+            query   += " and mimeType='application/vnd.google-apps.folder'"
+        results      = self.service.files().list(
+            q        = query,
+            fields   = 'files(id, name)',
+            pageSize = 1).execute()
+        files        = results.get('files', [])
         if files:
             return files[0].get('id')
         return None
@@ -73,6 +70,20 @@ class DriveUploader:
         print(f"Created folder: {folder_name} (ID: {folder.get('id')})")
         return folder.get('id')
     
+    def delete_local_folder(self,folder_path):
+        """ deleted the local sub category folder after upload in drive"""
+        try:
+            if os.path.exists(folder_path):
+                shutil.rmtree(folder_path)
+                print(f"deleted local sub category folder : {folder_path}")
+                return True
+            else:
+                print(f"folder not found : {folder_path}")
+                return False
+        except Exception as e:
+            print(f"Error deleting folder {folder_path}: {str(e)}")
+            return False
+
     def upload_file(self, file_path, parent_id):
         """Upload a single file to Google Drive (skip if exists)"""
         file_name       = os.path.basename(file_path)
@@ -93,7 +104,7 @@ class DriveUploader:
         print(f"Uploaded: {uploaded_file.get('name')}")
         return uploaded_file
     
-    def upload_folder(self, local_path, parent_id):
+    def upload_folder(self, local_path, parent_id,delete = False):
         """Recursively upload folder structure to Google Drive"""
         # Get all items in the current directory
         items         = os.listdir(local_path)
@@ -103,8 +114,10 @@ class DriveUploader:
                 # It's a folder - create it in Drive and recurse
                 print(f"Processing folder: {item}")
                 folder_id = self.create_folder(item, parent_id)
-                # Recursively upload contents of this folder
-                self.upload_folder(item_path, folder_id)
+                # Recursively upload contents of this folder ( sub foders)
+                self.upload_folder(item_path, folder_id,delete=True)
+                if delete:
+                    self.delete_local_folder(item_path)
             elif os.path.isfile(item_path):
                 # It's a file - upload it
                 self.upload_file(item_path, parent_id)
