@@ -115,7 +115,7 @@ class Asset:
                         for file_name in os.listdir(download_dir):
                             file_path = os.path.join(download_dir, file_name)
                             if os.path.isfile(file_path):
-                                self.drive_uploader.upload_asset_folder(file_path, current_parent_id)
+                                self.drive_uploader.upload_asset_folder()
                         print(f"Upload completed for: {folder_path}")
                         # Delete local folder after successful upload
                         print(f"Deleting local folder: {download_dir}")
