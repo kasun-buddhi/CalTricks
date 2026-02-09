@@ -68,7 +68,7 @@ class DriveDataBase:
             body         = file_metadata,
             fields       = 'id, name').execute()
         print(f"Created folder: {folder_name} (ID: {folder.get('id')})")
-        return folder.get('id')
+        return folder.get('id'),folder_name
     
     def _upload_file(self, file_path, parent_id):
         """Upload a single file to Google Drive (skip if exists)"""
@@ -87,8 +87,9 @@ class DriveDataBase:
             body        = file_metadata,
             media_body  = media,
             fields      = 'id, name, webViewLink').execute()
-        print(f"Uploaded: {uploaded_file.get('name')}")
-        return uploaded_file
+        filename = uploaded_file.get('name')
+        print(f"Uploaded: {filename}")
+        return uploaded_file, filename
     
     def _upload_folder(self, local_path, parent_id):
         """Recursively upload folder structure to Google Drive"""
@@ -104,12 +105,11 @@ class DriveDataBase:
                 self._upload_folder(item_path, folder_id)
             elif os.path.isfile(item_path):
                 # It's a file - upload it
-                self._upload_file(item_path, parent_id)
-    
+                files = self._upload_file(item_path, parent_id)
+        return item
+
     def upload_asset_folder(self):
-       
         """Upload entire Asset folder structure to Google Drive"""
-        
         creds            = self._authenticate()
         self.service     = build("drive", "v3", credentials=creds)
         print(f"Starting upload of: {self.folder}")
@@ -118,11 +118,11 @@ class DriveDataBase:
             return
         # Create main "Asset" folder in Google Drive (or use existing)
         main_folder_name        = os.path.basename(self.folder)
-        main_folder_id          = self._create_folder(main_folder_name, GOOGLE_DRIVE_PARENT_FOLDER_ID)
+        main_folder_id         = self._create_folder(main_folder_name, GOOGLE_DRIVE_PARENT_FOLDER_ID)
         # Upload all contents recursively
-        self._upload_folder(self.folder, main_folder_id)
+        filename = self._upload_folder(self.folder, main_folder_id)
         print("Upload completed successfully!")
-        #return main_folder_id
+        return filename      
         
     
     def delete_local_folder(self,folder_path):

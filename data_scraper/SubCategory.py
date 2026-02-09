@@ -78,7 +78,4 @@ class SubCategory:
                         asset_link_dict[sub_url].append(full_url)
                 # Yield after completing entire sub-category
                 print(f"Completed sub-category: {sub_url}")
-                yield asset_link_dict
-    
-        
-     
+                yield asset_link_dict     
