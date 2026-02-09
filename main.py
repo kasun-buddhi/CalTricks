@@ -4,7 +4,4 @@ from drive.DriveUploader import DriveUploader
 
 craft = CraftNest()
 asset = Asset(craft)
-#asset.download_asset()
-
-uploader = DriveUploader()
-uploader.upload_asset_folder()
+asset.download_asset()
