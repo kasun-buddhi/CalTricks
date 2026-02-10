@@ -46,23 +46,37 @@ class Asset:
         download.save_as(file_path)
         print(f"Saved the file : {file_path}")
         return file_path
-    
+    """
     def download_asset(self):
         download_button_selector      =  "body>main>section>section>div>div>div:nth-child(2)>div:nth-child(4)>a"
         new_download_selector         =  "body>astro-island>div>div>div:nth-child(1)>div:nth-child(2)>div>div>nav>ol>li>button>span"
         zip_download_selector         =  "body>div>div"
+        download_asset_links          = []
+        processed_urls                = set()  # Track unique URLs
+        
         print(f"Received {len(self.sub_category_links)} sub-categories to download")
+        
         for sub_category_url, asset_list in self.sub_category_links.items():
-            # Extract category/sub-category path from URL
             folder_path      = self._extract_folder_name(sub_category_url)
-            # Create full directory path: Asset/cliparts/afro_american_clipart/
             download_dir     = os.path.join(DOWNLOAD_ASSET_LOCATION, folder_path)
             os.makedirs(download_dir, exist_ok = True)
+            
+            # Remove duplicates from asset_list
+            unique_assets = [url for url in asset_list if url not in processed_urls]
+            
             print(f"Sub-category: {sub_category_url}")
             print(f"Download location: {download_dir}")
-            print(f"Total assets: {len(asset_list)}")
-            for idx, asset_url in enumerate(asset_list, start = 1):
-                print(f"[{idx}/{len(asset_list)}] Downloading asset: {asset_url}")
+            print(f"Total assets: {len(asset_list)} (Unique: {len(unique_assets)})")
+            
+            for idx, asset_url in enumerate(unique_assets, start = 1):
+                # Skip if already processed
+                if asset_url in processed_urls:
+                    print(f"[{idx}/{len(unique_assets)}] Skipping duplicate: {asset_url}")
+                    continue
+                
+                processed_urls.add(asset_url)  # Mark as processed
+                
+                print(f"[{idx}/{len(unique_assets)}] Downloading asset: {asset_url}")
                 try:
                     self.page.goto(asset_url, wait_until = "domcontentloaded", timeout  = 180000)
                     self.page.locator(download_button_selector).click()
@@ -78,15 +92,18 @@ class Asset:
                         self.page.locator(zip_download_selector).click()
                     download      = download_info.value
                     if self._save_file_local(download, download_dir) is None:
-                        # File already exists, skip to next
                         continue  
                 except Exception as e:
                     print(f"Error downloading {asset_url}: {e}")
-                    self._save_links_to_json(asset_url, "failed")
+                    download_asset_links.append({"url": asset_url, "status": "failed"})
                     continue   
-                print(f"Completed download sub category : {sub_category_url}")
-                self._save_links_to_json(asset_url, "done")
-    
+                print(f"Completed download asset : {asset_url}")
+                download_asset_links.append({"url": asset_url, "status": "done"})
+            
+            print(f"Completed download assets of {sub_category_url}")
+            for item in download_asset_links:
+                self._save_links_to_json(item["url"], item["status"])
+        """
     def _save_links_to_json(self, url, status="pending"):
         file_path   = "links.json"
         # Create JSON file if it doesn't exist
@@ -106,4 +123,58 @@ class Asset:
         with open(file_path, "w") as f:
             json.dump(data, f, indent=4)
         link_count = len(url) if isinstance(url, list) else 1
-        
+    
+
+    def download_asset(self):
+        download_button_selector  = "body>main>section>section>div>div>div:nth-child(2)>div:nth-child(4)>a"
+        zip_download_selector     = "body>div>div" 
+        new_download_selector     = "body>astro-island>div>div>div:nth-child(1)>div:nth-child(2)>div>div>nav>ol>li>button>span"
+        processed_urls            = set()
+        download_asset_links      = []
+        print(f"Received {len(self.sub_category_links)} sub-categories to download")
+        for sub_category_url, asset_list in self.sub_category_links.items():
+            folder_path      = self._extract_folder_name(sub_category_url)
+            download_dir     = os.path.join(DOWNLOAD_ASSET_LOCATION, folder_path)
+            os.makedirs(download_dir, exist_ok=True)
+            # Remove duplicates
+            unique_assets    = [url for url in asset_list if url not in processed_urls]
+            print(f"\nSub-category     : {sub_category_url}")
+            print(f"Download location  : {download_dir}")
+            print(f"Total assets       : {len(asset_list)} (Unique: {len(unique_assets)})")
+            for idx, asset_url in enumerate(unique_assets, start=1):
+                print(f"[{idx}/{len(unique_assets)}] Downloading asset: {asset_url}")
+                try:
+                    # Navigate to asset page
+                    self.page.goto(asset_url, wait_until="domcontentloaded", timeout=180000)
+                    # Click download button
+                    self.page.locator(download_button_selector).click()
+                    # Wait for the new page if it opens
+                    with self.page.context.expect_page() as new_page_info:
+                        new_page = new_page_info.value
+                    new_page.set_default_timeout(120000)
+                    # Close old page safely
+                    self.page.close()
+                    self.page = new_page
+                    # Wait for actual download link/button
+                    new_page.wait_for_selector(new_download_selector, timeout=180000)
+                    new_page.locator(new_download_selector).click()
+                    # Start download and wait
+                    with new_page.expect_download(timeout=300000) as download_info:
+                        new_page.locator(zip_download_selector).click()
+                    download        = download_info.value
+                    saved_file      = self._save_file_local(download, download_dir)
+                    if saved_file is None:
+                        print(f"Failed to save file for: {asset_url}")
+                        download_asset_links.append({"url": asset_url, "status": "failed"})
+                        continue
+                    print(f"Completed download asset: {asset_url}")
+                    download_asset_links.append({"url": asset_url, "status": "done"})
+                    processed_urls.add(asset_url)
+                except Exception as e:
+                    print(f"Error downloading {asset_url}: {e}")
+                    download_asset_links.append({"url": asset_url, "status": "failed"})
+                    continue
+            print(f"Completed all assets for sub-category: {sub_category_url}")
+            # Save links to JSON after each sub-category
+            for item in download_asset_links:
+                self._save_links_to_json(item["url"], item["status"])
