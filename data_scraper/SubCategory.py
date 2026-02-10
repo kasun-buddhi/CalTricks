@@ -59,6 +59,8 @@ class SubCategory:
             for idx, (name, sub_url) in enumerate(sub_urls, start=1):
                 print(f"Opening sub-category {idx}/{len(sub_urls)}: {name}")
                 print("URL:", sub_url)
+                if self.page is None or self.page.is_closed():
+                    self.page = self.context.new_page()
                 self.page.goto(sub_url, wait_until="domcontentloaded")
                 final_count     = self.__scroll_until_no_new_content(self.page, asset_item_selector)
                 #print(final_count)
