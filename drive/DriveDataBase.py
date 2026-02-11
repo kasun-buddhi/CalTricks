@@ -161,19 +161,3 @@ class DriveDataBase:
         except Exception as e :
             print(f"upload failed : {e}")
             return None
-        
-    def delete_local_folder(self,folder_path):
-        """ deleted the local sub category folder after upload in drive"""
-        try:
-            deleted_folders = []
-            if os.path.exists(folder_path):
-                shutil.rmtree(folder_path)
-                deleted_folders.append(folder_path)
-                print(f"deleted local sub category folder : {folder_path}")
-                return True
-            else:
-                print(f"folder not found : {folder_path}")
-                return False
-        except Exception as e:
-            print(f"Error deleting folder {folder_path}: {str(e)}")
-            return False
