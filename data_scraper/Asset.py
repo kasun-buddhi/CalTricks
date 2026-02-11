@@ -67,6 +67,9 @@ class Asset:
             json.dump(data, f, indent=4)
         link_count = len(url) if isinstance(url, list) else 1
     
+
+
+    
     def download_asset(self):
         download_button_selector  = "body>main>section>section>div>div>div:nth-child(2)>div:nth-child(4)>a"
         zip_download_selector     = "body>div>div" 
