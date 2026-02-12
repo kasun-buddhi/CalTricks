@@ -71,25 +71,14 @@ class Main:
     
     def upload_drive(self):
         """Upload and delete the downloaded subcategory"""
+        is_upload  = False
         print("\nUploading to Google Drive...")
-        # Get list of folders to upload/delete
-        delete_folder = []
-        for root, dirs, files in os.walk(DOWNLOAD_ASSET_LOCATION):
-            delete_folder = dirs
-            folder = delete_folder[0]
-            break  
-        if delete_folder:
-            # Upload
-            self.drivedatabase.upload_asset_folder()
-            print("Upload complete!")
-            # Delete
-            if os.path.exists(DOWNLOAD_ASSET_LOCATION):
-                os.remove(DOWNLOAD_ASSET_LOCATION)
-            print(f"Deleted local folders: {folder}")
-            return True
-        else:
-            print("No folders to upload")
-            return False
+        # Upload
+        self.drivedatabase.upload_asset_folder()
+        is_upload == True
+        print("Upload complete!")
+        if is_upload == True:
+            self.drivedatabase.delete_folder(DOWNLOAD_ASSET_LOCATION)   
 if __name__ == "__main__":
     m = Main()
     m.download_asset()
