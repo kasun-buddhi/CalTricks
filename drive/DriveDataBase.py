@@ -161,3 +161,12 @@ class DriveDataBase:
         except Exception as e :
             print(f"upload failed : {e}")
             return None
+    
+    def delete_folder(self,folder_path):
+        try:
+            shutil.rmtree(folder_path)
+            print(f"Folder {folder_path} deleted successfully")
+        except FileNotFoundError:
+            print(f"Folder '{folder_path}' not found.")
+        except Exception as e:
+            print(f"Error occurred: {e}")
