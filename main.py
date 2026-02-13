@@ -27,7 +27,7 @@ class Main:
             for item in asset.scrape_asset_links():
                 for sub_url, asset_urls in item.items():
                     if asset_urls:
-                        last_five   = {sub_url: asset_urls[-5:]}
+                        last_five   = {sub_url: asset_urls}
                         download    = DownloadAsset(last_five, self.craftnest.page)
                         download.download_asset()
                         file_count  = self.get_files_count()
@@ -71,14 +71,22 @@ class Main:
     
     def upload_drive(self):
         """Upload and delete the downloaded subcategory"""
-        is_upload  = False
+        is_upload = False
         print("\nUploading to Google Drive...")
         # Upload
         self.drivedatabase.upload_asset_folder()
-        is_upload == True
+        is_upload = True  
         print("Upload complete!")
-        if is_upload == True:
-            self.drivedatabase.delete_folder(DOWNLOAD_ASSET_LOCATION)   
+        if is_upload:
+            try:
+                self.drivedatabase.delete_folder(DOWNLOAD_ASSET_LOCATION)
+                print("folder deleted!")
+            except Exception as e:
+                print(f"delete Error : {e}")
+
 if __name__ == "__main__":
-    m = Main()
-    m.download_asset()
+    try:
+        m = Main()
+        m.download_asset()
+    except KeyboardInterrupt:
+        print("\nStopped by user. Cleaning up safely...")
