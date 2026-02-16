@@ -156,7 +156,7 @@ class DriveDataBase:
             main_folder_id         = self._create_folder(main_folder_name, GOOGLE_DRIVE_PARENT_FOLDER_ID)
             # Upload all contents recursively
             filename = self._upload_folder(self.folder, main_folder_id)
-            print("Upload completed successfully!")
+            #print("Upload completed successfully!")
             return filename 
         except Exception as e :
             print(f"upload failed : {e}")
