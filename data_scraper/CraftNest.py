@@ -7,7 +7,7 @@ class CraftNest:
     def __init__(self):
         self.url            = "https://craftnest.net"
         self.playwright     = sync_playwright().start()
-        self.browser        = self.playwright.chromium.launch(headless = True, args = ["--disable-gpu"])
+        self.browser        = self.playwright.chromium.launch(headless = False, args = ["--disable-gpu"])
         self.context        = None
         self.page           = None
 
