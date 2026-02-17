@@ -18,7 +18,8 @@ class Main:
         for sub_urls in self.subcategory.scrape_sub_categories():
             subcategory_num += 1
             print(f"Processing subcategory {subcategory_num}")
-            asset = Asset(sub_urls, self.craftnest.page)
+            after_four_sub = sub_urls[3:]
+            asset = Asset(after_four_sub, self.craftnest.page)
             for item in asset.scrape_asset_links():
                 # Download the asset
                 download = DownloadAsset([item], self.craftnest.page)
