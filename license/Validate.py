@@ -1,7 +1,10 @@
 import hmac
 import hashlib
 from datetime import datetime
-from license.License import get_secret_key
+try:
+    from license.License import get_secret_key
+except ModuleNotFoundError:
+    from License import get_secret_key
 
 
 class Validate:
