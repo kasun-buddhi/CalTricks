@@ -1,9 +1,11 @@
 import gc
+import sys 
 from data_scraper.CraftNest import CraftNest
 from data_scraper.SubCategory import SubCategory
 from data_scraper.Asset import Asset
 from data_scraper.DownloadAsset import DownloadAsset
 from drive.DriveDataBase import DriveDataBase
+from license.Validate import Validate
 from Config import *
 
 
@@ -84,12 +86,26 @@ class Main:
 
 if __name__ == "__main__":
     try:
-        m = Main()
-        m.download_asset()
+        user_key  = input("Enter your license key: ").strip()
+        validator = Validate(user_key)
+        result    = validator.validate_license(user_key)
+        if result == "VALID":
+            print("License valid! Starting...")
+            m = Main()
+            m.download_asset()
+        elif result == "EXPIRED":
+            print("License expired. Please contact support.")
+            sys.exit(1)
+        elif result == "Invalid Signature":
+            print("Invalid license key. Please contact support.")
+            sys.exit(1)
+        else:
+            print(f"License check failed: {result}")
+            sys.exit(1)
     except KeyboardInterrupt:
-        print("\n[Stopped] Script stopped by user. Cleaning up...")
+        print("[Stopped] Script stopped by user. Cleaning up...")
     except Exception as e:
-        print(f"{e}")
+        print(f"[Error] {e}")
     finally:
         gc.collect()
         print("Exit")
