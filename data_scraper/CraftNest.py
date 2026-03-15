@@ -41,13 +41,13 @@ class CraftNest:
     def login(self):
         print("Navigating to login page...")
         self.page.goto(LOGIN_URL, wait_until   = "domcontentloaded", timeout = CRAFTNEST_TIMEOUT)
-        # STEP 1 - fill email
+        #fill email
         self.page.locator("#CustomerEmailStep1").wait_for(state = "visible", timeout = CRAFTNEST_TIMEOUT)
         self.page.locator("#CustomerEmailStep1").fill(USERNAME)
         # click Login button
         self.page.locator("button[type  ='button']:has-text('Login')").click()
         self.page.wait_for_timeout(2000)
-        # STEP 2 - fill password
+        # fill password
         self.page.locator("#CustomerPassword").wait_for(state = "visible", timeout  = CRAFTNEST_TIMEOUT)
         self.page.locator("#CustomerPassword").fill(PASSWORD)
         # submit
@@ -73,6 +73,7 @@ class CraftNest:
         print("Auth state saved!")
         print("Site url is :", self.url)
 
+    
     def scrape_categories(self):
         self.save_auth()
         category_links  = []
@@ -94,6 +95,7 @@ class CraftNest:
             category_links.append(sorted_href)
         return category_links
 
+    
     def close(self):
         """Cleanly close page, context, browser, and playwright to free memory."""
         print("[Browser] Closing browser...")
@@ -117,9 +119,8 @@ class CraftNest:
                 self.playwright.stop()
         except Exception as e:
             print(f"[Browser] Playwright stop error: {e}")
-
-        self.page       = None
-        self.context    = None
-        self.browser    = None
-        self.playwright = None
-        print("[Browser] Browser fully closed and memory freed!")
+        self.page           = None
+        self.context        = None
+        self.browser        = None
+        self.playwright     = None
+        print("[Browser] Browser fully closed.")
