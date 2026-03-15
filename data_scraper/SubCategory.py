@@ -1,12 +1,8 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) 
-
-
 class SubCategory:
     def __init__(self,category_links,page):
         self.links      = category_links
         self.page       = page
+
 
     def scrape_sub_categories(self):
         sub_categories_ul       = "body>main>section>div>div>div>div>div:nth-child(2)>div:nth-child(4)>ul"
