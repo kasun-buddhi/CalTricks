@@ -1,6 +1,5 @@
 import sys
 import os
-import json
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Config import *
 
@@ -10,10 +9,11 @@ class Asset:
         self.sub_category_links   = sub_category_links
         self.page                 = page  
 
+
     def __scroll_until_no_new_content(self, page, selector):
         previous_count      = 0
         no_change_count     = 0
-        scroll_times        = 10
+        scroll_times        = 4
         for scroll_num in range(scroll_times):
             page.evaluate("""window.scrollBy({top: window.innerHeight, behavior: 'smooth'});""")
             page.wait_for_timeout(3000)
@@ -21,13 +21,14 @@ class Asset:
             print(f"Scroll {scroll_num + 1}: Items loaded: {new_count}")
             if new_count            == previous_count:
                 no_change_count     += 1
-                if no_change_count  >= 3:
+                if no_change_count  >= 2:
                     print(f"Final count: {new_count}")
                     break
             else:
                 no_change_count      = 0
             previous_count           = new_count
         return new_count
+
 
     def scrape_asset_links(self):
         asset_item_selector = "body > main > section > div > div > div > div > div:nth-child(4) > div > div:nth-child(2) > div > div"
