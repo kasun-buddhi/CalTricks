@@ -8,7 +8,7 @@ class CraftNest:
         self.url            = "https://craftnest.net"
         self.playwright     = sync_playwright().start()
         self.browser        = self.playwright.chromium.launch(
-        headless            = False,
+        headless            = True,
         args                = [
                             "--disable-gpu",
                             "--disable-dev-shm-usage",
