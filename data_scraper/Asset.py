@@ -31,7 +31,8 @@ class Asset:
 
 
     def scrape_asset_links(self):
-        asset_item_selector = "body > main > section > div > div > div > div > div:nth-child(4) > div > div:nth-child(2) > div > div"
+        asset_item_selector     = "body > main > section > div > div > div > div > div:nth-child(4) > div > div:nth-child(2) > div > div"
+        seen_links              = set()
         for idx, (name, sub_url) in enumerate(self.sub_category_links, start=1):
             print(f"Opening sub-category {idx}/{len(self.sub_category_links)}: {name}")
             print("URL:", sub_url)
@@ -47,8 +48,11 @@ class Asset:
                 "elements => elements.map(a => a.href)")
             print(f"Found links: {len(hrefs)}")
             for href in hrefs:
-                if href:
-                    # Ensure full URL
-                    if not href.startswith("http"):
-                        href = "https://craftnest.net" + href
+                if not href:
+                    continue
+                # Ensure full URL
+                if not href.startswith("http"):
+                    href = "https://craftnest.net" + href
+                if href not in seen_links:
+                    seen_links.add(href)
                     yield href, sub_url
