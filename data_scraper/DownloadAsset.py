@@ -140,16 +140,16 @@ class DownloadAsset:
         Asset/category/sub_category/Asset Name/original_file.zip
         """
         self.clean_disk()
-        download_button_selector = "body>main>section>section>div>div>div:nth-child(2)>div:nth-child(4)>a"
-        zip_download_selector    = "body>div>div"
-        new_download_selector    = "body>astro-island>div>div>div:nth-child(1)>div:nth-child(2)>div>div>nav>ol>li>button>span"
-        processed_urls           = set()
-        context                  = self.page.context
+        download_button_selector    = "body>main>section>section>div>div>div:nth-child(2)>div:nth-child(4)>a"
+        zip_download_selector       = "body>div>div"
+        new_download_selector       = "body>astro-island>div>div>div:nth-child(1)>div:nth-child(2)>div>div>nav>ol>li>button>span"
+        processed_urls              = set()
+        context                     = self.page.context
         for i, (asset_url, sub_url) in enumerate(self.asset_links):
             sub_category_path      = self._extract_folder_name(sub_url)
             new_page               = None
             download               = None
-            self.last_download_dir = None   # ← reset before each asset
+            self.last_download_dir = None  
             try:
                 if self.page is None or self.page.is_closed():
                     self.page = context.new_page()
@@ -164,12 +164,12 @@ class DownloadAsset:
                 new_page.locator(new_download_selector).click(timeout=60000)
                 with new_page.expect_download(timeout=600000) as download_info:
                     new_page.locator(zip_download_selector).click(timeout=60000)
-                download          = download_info.value
-                zip_filename      = download.suggested_filename
-                asset_folder_name = self._get_asset_folder_name(zip_filename)
-                download_dir      = os.path.join(DOWNLOAD_ASSET_LOCATION, sub_category_path, asset_folder_name)
+                download            = download_info.value
+                zip_filename        = download.suggested_filename
+                asset_folder_name   = self._get_asset_folder_name(zip_filename)
+                download_dir        = os.path.join(DOWNLOAD_ASSET_LOCATION, sub_category_path, asset_folder_name)
                 os.makedirs(download_dir, exist_ok=True)
-                self.last_download_dir = download_dir   # ← set exact folder path
+                self.last_download_dir = download_dir   # set exact folder path
                 saved_file             = self._save_file_local(download, download_dir)
                 if saved_file is None:
                     self.failed_download_json([asset_url])
@@ -177,7 +177,7 @@ class DownloadAsset:
                 processed_urls.add(asset_url)
             except Exception as e:
                 print(f"[Error] Download failed: {asset_url} : {e}")
-                self.last_download_dir = None           # ← clear on failure
+                self.last_download_dir = None          
                 self.failed_download_json([asset_url])
             finally:
                 for p in [new_page, self.page]:
@@ -190,7 +190,6 @@ class DownloadAsset:
                 download  = None
                 self.page = None
                 gc.collect()
-
             if (i + 1) % 5 == 0:
                 print(f"[Memory] Running cleanup at asset {i+1}")
                 self.clean_disk()
