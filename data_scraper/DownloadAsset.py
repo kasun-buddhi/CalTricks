@@ -13,9 +13,11 @@ from Config import *
 
 class DownloadAsset:
     def __init__(self, asset_links, page):
-        self.asset_links = asset_links 
-        self.page        = page
-    
+        self.asset_links         = asset_links 
+        self.page                = page
+        self.last_download_dir   = None       
+
+
     def clean_disk(self):
         removed  = 0
         system   = platform.system()
@@ -57,6 +59,7 @@ class DownloadAsset:
                     continue
         print(f"Freed {removed / (1024*1024):.2f} MB.")
 
+
     def _extract_folder_name(self, sub_category_url):
         """
         Extract structured folder path from sub-category URL.
@@ -76,6 +79,7 @@ class DownloadAsset:
                 return f"Asset/{category}"
         return "Asset/unknown"
 
+
     def _get_asset_folder_name(self, zip_filename, index):
         """
         Build numbered asset folder name from zip filename.
@@ -88,6 +92,7 @@ class DownloadAsset:
         stripped_name = re.sub(r'^\d+_', '', base_name)    # I Floral Alphabet Clipart Bundle
         new_id        = f"{index:02d}"                      # 01, 02, 03...
         return f"{new_id}_{stripped_name}"                  # 01_I Floral Alphabet Clipart Bundle
+
 
     def _save_file_local(self, download, download_dir):
         """
@@ -104,6 +109,7 @@ class DownloadAsset:
         print(f"Saved the file: {file_path}")
         return file_path
 
+
     def failed_download_json(self, urls):
         """Save failed download links to JSON file."""
         file_path = "failed_download.json"
@@ -118,7 +124,7 @@ class DownloadAsset:
                 print("[Warning] Corrupted JSON detected, backing up and starting fresh...")
                 backup = file_path.replace(".json", "_corrupted_backup.json")
                 os.replace(file_path, backup)
-                data  = {"links": []}
+                data   = {"links": []}
         existing_urls = {entry["url"] for entry in data["links"]}
         if isinstance(urls, list):
             for u in urls:
@@ -134,6 +140,7 @@ class DownloadAsset:
             os.replace(tmp_path, file_path)
         except OSError:
             print("Could not save failed downloads!")
+
 
     def download_asset(self):
         """Download all assets into structured folder hierarchy:
@@ -156,16 +163,17 @@ class DownloadAsset:
             asset_index = sub_category_counters[sub_category_path]
             print(f"\n[Asset {i+1}/{len(self.asset_links)}] {asset_url}")
             print(f"[Sub-category] {sub_category_path}")
-            new_page = None
-            download = None
+            new_page               = None
+            download               = None
+            self.last_download_dir = None
             try:
                 if self.page is None or self.page.is_closed():
                     self.page = context.new_page()
-                self.page.goto(asset_url, wait_until="domcontentloaded", timeout=180000)
-                with context.expect_page(timeout=60000) as new_page_info:
-                    self.page.locator(download_button_selector).click()
+                self.page.goto(asset_url, wait_until="domcontentloaded", timeout=300000)
+                with context.expect_page(timeout=120000) as new_page_info:
+                    self.page.locator(download_button_selector).click(timeout=60000)
                 new_page = new_page_info.value
-                new_page.set_default_timeout(120000)
+                new_page.set_default_timeout(300000)
                 self.page.close()
                 self.page = new_page
                 new_page.wait_for_selector(new_download_selector, timeout=180000)
@@ -180,13 +188,15 @@ class DownloadAsset:
                 download_dir = os.path.join(DOWNLOAD_ASSET_LOCATION, sub_category_path, asset_folder_name)
                 os.makedirs(download_dir, exist_ok=True)
                 print(f"[Location] {download_dir}")
+                self.last_download_dir = download_dir
                 saved_file = self._save_file_local(download, download_dir)
                 if saved_file is None:
                     self.failed_download_json([asset_url])
                     continue
                 processed_urls.add(asset_url)
             except Exception as e:
-                print(f"[Error] Download failed: {asset_url} -> {e}")
+                print(f"[Error] Download failed: {asset_url} : {e}")
+                self.last_download_dir = None          
                 self.failed_download_json([asset_url])
             finally:
                 # Close all pages
@@ -202,11 +212,9 @@ class DownloadAsset:
                 self.page    = None
                 # Force garbage collection after every asset
                 gc.collect()
-            # Clean disk every 5 assets to free temp files
             if (i + 1) % 5 == 0:
                 print(f"[Memory] Running cleanup at asset {i+1}")
                 self.clean_disk()
                 gc.collect()
-        print(f"Processed {len(processed_urls)}/{len(self.asset_links)} assets.")
         processed_urls.clear()
         gc.collect()

@@ -12,30 +12,36 @@ class CraftNest:
         self.url            = "https://craftnest.net"
         self.playwright     = sync_playwright().start()
         self.browser        = self.playwright.chromium.launch(
-            headless        = False, 
-            args            = [
+        headless            = True,
+        args                = [
                             "--disable-gpu",
                             "--disable-dev-shm-usage",               # prevents shared memory crashes
                             "--no-sandbox",                          # reduces memory overhead
                             "--disable-extensions",                  # no extensions = less memory
                             "--disable-background-networking",       # stops background memory usage
-                            "--js-flags=--max-old-space-size=512"]) # limit browser JS heap to 512MB
+                            "--disable-background-timer-throttling",
+                            "--disable-renderer-backgrounding",
+                            "--js-flags=--max-old-space-size=512"])  # limit browser JS heap to 512MB
         self.context        = None
         self.page           = None
+
 
     def setup_context(self):
         """Creates context — loads saved auth if it exists."""
         if Path(AUTH_FILE).exists():
-            self.context = self.browser.new_context(storage_state=AUTH_FILE)
+            self.context    = self.browser.new_context(storage_state=AUTH_FILE)
         else:
-            self.context = self.browser.new_context()
-        self.page = self.context.new_page()
+            self.context    = self.browser.new_context()
+        self.page           = self.context.new_page()
+        self.page.set_default_timeout(60000)
+
 
     def is_logged_in(self):
         current_url = self.page.url
         print(f"Current url : {current_url}")
         # Not logged in only if still on login page
         return LOGIN_URL not in current_url
+
 
     def login(self):
         username_selector        = "body>main>section>div>div>div>div>div:nth-child(2)>div:nth-child(2)>input"
@@ -63,6 +69,7 @@ class CraftNest:
             raise Exception("[Login] Login failed — still on login page after submit. Check credentials or selectors.")
         print(f"[Login] Login successful! Redirected to: {current_url}")
 
+
     def save_auth(self):
         self.setup_context()
         if Path(AUTH_FILE).exists():
@@ -79,24 +86,31 @@ class CraftNest:
         print("[Auth] Auth state saved!")
         print("[Auth] Site url is:", self.url)
 
+
     def scrape_categories(self):
         self.save_auth()
         category_links = []
-        self.page.wait_for_selector("ul.tmenu_nav")
+        self.page.wait_for_load_state("domcontentloaded")
+        self.page.wait_for_selector("ul.tmenu_nav", state="visible", timeout=60000)
         categories = self.page.locator("ul.tmenu_nav > li.tmenu_item")
         count      = categories.count()
+        print(f"Found {count} categories.")
         for index in range(count):
             item        = categories.nth(index)
             link        = item.locator("a.tmenu_item_link")
             href        = link.get_attribute("href")
+            if not href:
+                print(f"[Warning] Category {index} has no href, skipping.")
+                continue
             if href.startswith("/"):
-                href    = "https://craftnest.net" + href
-            sorted_href = href + "?sort_by=a-z"
+                href        = "https://craftnest.net" + href
+            sorted_href     = href + "?sort_by=a-z"
             category_links.append(sorted_href)
         return category_links
 
+
     def close(self):
-        """Cleanly close page, context, browser, and playwright to free Node.js memory."""
+        """Cleanly close page, context, browser, and playwright to free memory."""
         print("[Browser] Closing browser...")
         try:
             if self.page and not self.page.is_closed():
@@ -118,8 +132,8 @@ class CraftNest:
                 self.playwright.stop()
         except Exception as e:
             print(f"[Browser] Playwright stop error: {e}")
-        self.page       = None
-        self.context    = None
-        self.browser    = None
-        self.playwright = None
-        print("[Browser] Browser fully closed and memory freed!")
+        self.page           = None
+        self.context        = None
+        self.browser        = None
+        self.playwright     = None
+        print("[Browser] Browser fully closed.")
