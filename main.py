@@ -39,14 +39,15 @@ class Main:
 
     def download_asset(self):
         self.category_links = self.craftnest.scrape_categories()
-        self.subcategory    = SubCategory(self.category_links, self.craftnest.page)
+        second_category     = [self.category_links[1]]
+        self.subcategory    = SubCategory(second_category, self.craftnest.page)
+        #self.subcategory    = SubCategory(self.category_links, self.craftnest.page)
         subcategory_num     = 0
         for sub_urls in self.subcategory.scrape_sub_categories():
             subcategory_num += 1
             print(f"[Subcategory] Processing #{subcategory_num}")
-            after_four_sub = sub_urls[55:]
             # store as instance variable so restart_browser can update page ref
-            self.asset = Asset(after_four_sub, self.craftnest.page)
+            self.asset = Asset(sub_urls, self.craftnest.page)
             asset_num  = 0
             for item in self.asset.scrape_asset_links():
                 asset_num         += 1
