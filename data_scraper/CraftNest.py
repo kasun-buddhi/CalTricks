@@ -1,4 +1,8 @@
 from playwright.sync_api import sync_playwright
+import sys
+import os
+import json
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pathlib import Path
 from Config import *
 
@@ -11,13 +15,13 @@ class CraftNest:
         headless            = True,
         args                = [
                             "--disable-gpu",
-                            "--disable-dev-shm-usage",
-                            "--no-sandbox",
-                            "--disable-extensions",
-                            "--disable-background-networking",
+                            "--disable-dev-shm-usage",               # prevents shared memory crashes
+                            "--no-sandbox",                          # reduces memory overhead
+                            "--disable-extensions",                  # no extensions = less memory
+                            "--disable-background-networking",       # stops background memory usage
                             "--disable-background-timer-throttling",
-                             "--disable-renderer-backgrounding",
-                            "--js-flags=--max-old-space-size=512"])
+                            "--disable-renderer-backgrounding",
+                            "--js-flags=--max-old-space-size=512"])  # limit browser JS heap to 512MB
         self.context        = None
         self.page           = None
 
@@ -25,7 +29,7 @@ class CraftNest:
     def setup_context(self):
         """Creates context — loads saved auth if it exists."""
         if Path(AUTH_FILE).exists():
-            self.context    = self.browser.new_context(storage_state = AUTH_FILE)
+            self.context    = self.browser.new_context(storage_state=AUTH_FILE)
         else:
             self.context    = self.browser.new_context()
         self.page           = self.context.new_page()
@@ -33,59 +37,68 @@ class CraftNest:
 
 
     def is_logged_in(self):
-        current_url     = self.page.url
+        current_url = self.page.url
         print(f"Current url : {current_url}")
+        # Not logged in only if still on login page
         return LOGIN_URL not in current_url
 
 
     def login(self):
-        print("Navigating to login page...")
-        self.page.goto(LOGIN_URL, wait_until   = "domcontentloaded", timeout = CRAFTNEST_TIMEOUT)
-        #fill email
-        self.page.locator("#CustomerEmailStep1").wait_for(state = "visible", timeout = CRAFTNEST_TIMEOUT)
-        self.page.locator("#CustomerEmailStep1").fill(USERNAME)
-        # click Login button
-        self.page.locator("button[type  ='button']:has-text('Login')").click()
-        self.page.wait_for_timeout(2000)
-        # fill password
-        self.page.locator("#CustomerPassword").wait_for(state = "visible", timeout  = CRAFTNEST_TIMEOUT)
-        self.page.locator("#CustomerPassword").fill(PASSWORD)
-        # submit
-        self.page.locator("button[type  ='submit']").click()
-        self.page.wait_for_load_state("domcontentloaded", timeout = CRAFTNEST_TIMEOUT)
-        self.page.wait_for_timeout(3000)
-        self.page.goto(self.url, wait_until = "domcontentloaded", timeout = CRAFTNEST_TIMEOUT)
-        print("Login successful!")
+        username_selector        = "body>main>section>div>div>div>div>div:nth-child(2)>div:nth-child(2)>input"
+        username_button_selector = "body>main>section>div>div>div>div>div:nth-child(2)>div:nth-child(3)>button"
+        password_selector        = "body>main>section>div>div>div>div>div:nth-child(3)>form>div>input"
+        password_button_selector = "body>main>section>div>div>div>div>div:nth-child(3)>form>div:nth-child(6)>button"
+        print("[Login] Navigating to login page...")
+        self.page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=CRAFTNEST_TIMEOUT)
+        # Fill username
+        print("[Login] Entering username...")
+        self.page.locator(username_selector).wait_for(state="visible", timeout=CRAFTNEST_TIMEOUT)
+        self.page.locator(username_selector).fill(USERNAME)
+        self.page.locator(username_button_selector).click()
+        # Fill password
+        print("[Login] Entering password...")
+        self.page.locator(password_selector).wait_for(state="visible", timeout=CRAFTNEST_TIMEOUT)
+        self.page.locator(password_selector).fill(PASSWORD)
+        # Click login and wait for redirect to homepage
+        print("[Login] Submitting login form...")
+        with self.page.expect_navigation(wait_until="domcontentloaded", timeout=CRAFTNEST_TIMEOUT):
+            self.page.locator(password_button_selector).click()
+        # Confirm we are no longer on the login page
+        current_url = self.page.url
+        if LOGIN_URL in current_url:
+            raise Exception("[Login] Login failed — still on login page after submit. Check credentials or selectors.")
+        print(f"[Login] Login successful! Redirected to: {current_url}")
 
 
     def save_auth(self):
         self.setup_context()
         if Path(AUTH_FILE).exists():
-            self.page.goto(self.url, wait_until = "domcontentloaded", timeout = CRAFTNEST_TIMEOUT)
+            print("[Auth] Found saved auth state, checking if still valid...")
+            self.page.goto(self.url, wait_until="domcontentloaded", timeout=CRAFTNEST_TIMEOUT)
             if self.is_logged_in():
-                print("Session is valid. Already logged in.")
+                print("[Auth] Session is valid. Already logged in.")
                 return
             else:
-                print("Saved auth state is expired. Re-logging in...")
+                print("[Auth] Saved auth state is expired. Re-logging in...")
         self.login()
-        Path(AUTH_FILE).parent.mkdir(parents = True, exist_ok = True)
-        self.context.storage_state(path = AUTH_FILE)
-        print("Auth state saved!")
-        print("Site url is :", self.url)
+        Path(AUTH_FILE).parent.mkdir(parents=True, exist_ok=True)
+        self.context.storage_state(path=AUTH_FILE)
+        print("[Auth] Auth state saved!")
+        print("[Auth] Site url is:", self.url)
 
-    
+
     def scrape_categories(self):
         self.save_auth()
-        category_links  = []
+        category_links = []
         self.page.wait_for_load_state("domcontentloaded")
         self.page.wait_for_selector("ul.tmenu_nav", state="visible", timeout=60000)
-        categories  = self.page.locator("ul.tmenu_nav > li.tmenu_item")
-        count       = categories.count()
+        categories = self.page.locator("ul.tmenu_nav > li.tmenu_item")
+        count      = categories.count()
         print(f"Found {count} categories.")
         for index in range(count):
-            item    = categories.nth(index)
-            link    = item.locator("a.tmenu_item_link")
-            href    = link.get_attribute("href")
+            item        = categories.nth(index)
+            link        = item.locator("a.tmenu_item_link")
+            href        = link.get_attribute("href")
             if not href:
                 print(f"[Warning] Category {index} has no href, skipping.")
                 continue
@@ -95,7 +108,7 @@ class CraftNest:
             category_links.append(sorted_href)
         return category_links
 
-    
+
     def close(self):
         """Cleanly close page, context, browser, and playwright to free memory."""
         print("[Browser] Closing browser...")

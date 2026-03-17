@@ -59,7 +59,7 @@ Create a JSON Key
 ``` bash
 playwright install
 ```
-3.Setup Environment variables for Analyzer_v2
+3.Setup Environment variables 
  ### Linux/macOs
  ```bash
  #--Step 01

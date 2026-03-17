@@ -1,6 +1,7 @@
 import sys
 import os
 import gc
+import re
 import json
 import tempfile
 import platform
@@ -18,9 +19,9 @@ class DownloadAsset:
 
 
     def clean_disk(self):
-        removed    = 0
-        system     = platform.system()
-        temp_dir   =  Path(tempfile.gettempdir())
+        removed  = 0
+        system   = platform.system()
+        temp_dir = Path(tempfile.gettempdir())
         for item in temp_dir.iterdir():
             try:
                 if item.is_file() or item.is_symlink():
@@ -32,6 +33,7 @@ class DownloadAsset:
                     shutil.rmtree(item)
             except Exception:
                 continue
+        # Clean Windows temp files
         if system == "Windows":
             win_temp = Path(os.getenv("TEMP", "C:\\Windows\\Temp"))
             for item in win_temp.iterdir():
@@ -43,6 +45,7 @@ class DownloadAsset:
                         shutil.rmtree(item)
                 except Exception:
                     continue
+        # Clean Linux temp files
         elif system == "Linux":
             unix_temp = Path("/tmp")
             for item in unix_temp.iterdir():
@@ -62,29 +65,33 @@ class DownloadAsset:
         Extract structured folder path from sub-category URL.
         Example:
             Input  : https://craftnest.net/collections/cliparts/afro-american-clipart?sort_by=a-z
-            Output : cliparts/afro_american_clipart
+            Output : Asset/cliparts/afro_american_clipart
         """
         if "/collections/" in sub_category_url:
-            clean_url         = sub_category_url.split("?")[0]
-            parts             = clean_url.split("/collections/")[-1].split("/")
-            if len(parts)    >= 2:
-                category      = parts[0].replace("-", "_")
-                sub_category  = parts[1].replace("-", "_")
-                return f"{category}/{sub_category}"
-            elif len(parts)  == 1:
+            clean_url = sub_category_url.split("?")[0]
+            parts     = clean_url.split("/collections/")[-1].split("/")
+            if len(parts) >= 2:
                 category     = parts[0].replace("-", "_")
-                return f"{category}"
-        return "unknown"
+                sub_category = parts[1].replace("-", "_")
+                return f"Asset/{category}/{sub_category}"
+            elif len(parts) == 1:
+                category = parts[0].replace("-", "_")
+                return f"Asset/{category}"
+        return "Asset/unknown"
 
 
-    def _get_asset_folder_name(self, zip_filename):
+    def _get_asset_folder_name(self, zip_filename, index):
         """
-        Build asset folder name from zip filename.
+        Build numbered asset folder name from zip filename.
         Example:
             zip_filename : 03069_I Floral Alphabet Clipart Bundle.zip
-            Returns      : 03069_I Floral Alphabet Clipart Bundle
+            index        : 1
+            Returns      : 01_I Floral Alphabet Clipart Bundle
         """
-        return zip_filename.replace(".zip", "")
+        base_name     = zip_filename.replace(".zip", "")   # 03069_I Floral Alphabet Clipart Bundle
+        stripped_name = re.sub(r'^\d+_', '', base_name)    # I Floral Alphabet Clipart Bundle
+        new_id        = f"{index:02d}"                      # 01, 02, 03...
+        return f"{new_id}_{stripped_name}"                  # 01_I Floral Alphabet Clipart Bundle
 
 
     def _save_file_local(self, download, download_dir):
@@ -115,9 +122,9 @@ class DownloadAsset:
                         data = json.loads(content)
             except json.JSONDecodeError:
                 print("[Warning] Corrupted JSON detected, backing up and starting fresh...")
-                backup   = file_path.replace(".json", "_corrupted_backup.json")
+                backup = file_path.replace(".json", "_corrupted_backup.json")
                 os.replace(file_path, backup)
-                data     = {"links": []}
+                data   = {"links": []}
         existing_urls = {entry["url"] for entry in data["links"]}
         if isinstance(urls, list):
             for u in urls:
@@ -137,19 +144,28 @@ class DownloadAsset:
 
     def download_asset(self):
         """Download all assets into structured folder hierarchy:
-        Asset/category/sub_category/Asset Name/original_file.zip
+        Asset/category/sub_category/01_Asset Name/original_file.zip
         """
         self.clean_disk()
-        download_button_selector    = "body>main>section>section>div>div>div:nth-child(2)>div:nth-child(4)>a"
-        zip_download_selector       = "body>div>div"
-        new_download_selector       = "body>astro-island>div>div>div:nth-child(1)>div:nth-child(2)>div>div>nav>ol>li>button>span"
-        processed_urls              = set()
-        context                     = self.page.context
+        download_button_selector = "body>main>section>section>div>div>div:nth-child(2)>div:nth-child(4)>a"
+        zip_download_selector    = "body>div>div"
+        new_download_selector    = "body>astro-island>div>div>div:nth-child(1)>div:nth-child(2)>div>div>nav>ol>li>button>span"
+        # Track index per sub_category so numbering resets for each sub_category
+        sub_category_counters = {}
+        processed_urls        = set()
+        context               = self.page.context
+        print(f"Downloading {len(self.asset_links)} assets...")
         for i, (asset_url, sub_url) in enumerate(self.asset_links):
-            sub_category_path      = self._extract_folder_name(sub_url)
+            # e.g. Asset/cliparts/alphabet_clipart
+            sub_category_path = self._extract_folder_name(sub_url)
+            # Increment counter per sub_category independently
+            sub_category_counters[sub_category_path] = sub_category_counters.get(sub_category_path, 0) + 1
+            asset_index = sub_category_counters[sub_category_path]
+            print(f"\n[Asset {i+1}/{len(self.asset_links)}] {asset_url}")
+            print(f"[Sub-category] {sub_category_path}")
             new_page               = None
             download               = None
-            self.last_download_dir = None  
+            self.last_download_dir = None
             try:
                 if self.page is None or self.page.is_closed():
                     self.page = context.new_page()
@@ -160,17 +176,20 @@ class DownloadAsset:
                 new_page.set_default_timeout(300000)
                 self.page.close()
                 self.page = new_page
-                new_page.wait_for_selector(new_download_selector, timeout=300000)
-                new_page.locator(new_download_selector).click(timeout=60000)
-                with new_page.expect_download(timeout=600000) as download_info:
-                    new_page.locator(zip_download_selector).click(timeout=60000)
-                download            = download_info.value
-                zip_filename        = download.suggested_filename
-                asset_folder_name   = self._get_asset_folder_name(zip_filename)
-                download_dir        = os.path.join(DOWNLOAD_ASSET_LOCATION, sub_category_path, asset_folder_name)
+                new_page.wait_for_selector(new_download_selector, timeout=180000)
+                new_page.locator(new_download_selector).click()
+                with new_page.expect_download(timeout=300000) as download_info:
+                    new_page.locator(zip_download_selector).click()
+                download     = download_info.value
+                zip_filename = download.suggested_filename   # e.g. 03069_I Floral Alphabet Clipart Bundle.zip
+                # Build asset folder name: 01_I Floral Alphabet Clipart Bundle
+                asset_folder_name = self._get_asset_folder_name(zip_filename, asset_index)
+                # Full path: Asset/cliparts/alphabet_clipart/01_I Floral Alphabet Clipart Bundle/
+                download_dir = os.path.join(DOWNLOAD_ASSET_LOCATION, sub_category_path, asset_folder_name)
                 os.makedirs(download_dir, exist_ok=True)
-                self.last_download_dir = download_dir   # set exact folder path
-                saved_file             = self._save_file_local(download, download_dir)
+                print(f"[Location] {download_dir}")
+                self.last_download_dir = download_dir
+                saved_file = self._save_file_local(download, download_dir)
                 if saved_file is None:
                     self.failed_download_json([asset_url])
                     continue
@@ -180,15 +199,18 @@ class DownloadAsset:
                 self.last_download_dir = None          
                 self.failed_download_json([asset_url])
             finally:
+                # Close all pages
                 for p in [new_page, self.page]:
                     try:
                         if p and not p.is_closed():
                             p.close()
                     except Exception:
                         pass
-                new_page  = None
-                download  = None
-                self.page = None
+                # Clear references
+                new_page     = None
+                download     = None
+                self.page    = None
+                # Force garbage collection after every asset
                 gc.collect()
             if (i + 1) % 5 == 0:
                 print(f"[Memory] Running cleanup at asset {i+1}")
