@@ -11,15 +11,15 @@ from Config import *
 
 class DriveDataBase:
     def __init__(self, folder):
-        self.token_path = TOKEN_PATH
-        self.scopes     = DRIVE_SCOPES
-        self.service    = None
-        self.folder     = folder
+        self.token_path     = TOKEN_PATH
+        self.scopes         = DRIVE_SCOPES
+        self.service        = None
+        self.folder         = folder
 
     def _authenticate(self):
         if not self.token_path:
             raise ValueError("Token path not set.")
-        token_dir = os.path.dirname(self.token_path)
+        token_dir   = os.path.dirname(self.token_path)
         if token_dir and not os.path.exists(token_dir):
             os.makedirs(token_dir)
         creds = None
@@ -35,8 +35,8 @@ class DriveDataBase:
                     os.remove(self.token_path)
                     creds = None
             if not creds:
-                flow  = InstalledAppFlow.from_client_secrets_file('credentials.json', self.scopes)
-                creds = flow.run_local_server(port=0)
+                flow    = InstalledAppFlow.from_client_secrets_file('credentials.json', self.scopes)
+                creds   = flow.run_local_server(port=0)
             with open(self.token_path, 'w') as f:
                 f.write(creds.to_json())
         return creds
@@ -57,7 +57,7 @@ class DriveDataBase:
             query     = f"name='{safe_name}' and '{parent_id}' in parents and trashed = false"
             if is_folder:
                 query += " and mimeType='application/vnd.google-apps.folder'"
-            results = self.service.files().list(
+            results      = self.service.files().list(
                 q        = query,
                 fields   = 'files(id, name)',
                 pageSize = 1
@@ -78,14 +78,13 @@ class DriveDataBase:
             if existing_id:
                 print(f"Folder already exists: {folder_name} (ID: {existing_id})")
                 return existing_id
-            file_metadata = {
-                'name'    : folder_name,
-                'mimeType': 'application/vnd.google-apps.folder',
-                'parents' : [parent_id]
-            }
-            folder = self.service.files().create(
-                body   = file_metadata,
-                fields = 'id, name'
+            file_metadata   = {
+                'name'      : folder_name,
+                'mimeType'  : 'application/vnd.google-apps.folder',
+                'parents'   : [parent_id]}
+            folder          = self.service.files().create(
+                body        = file_metadata,
+                fields      = 'id, name'
             ).execute()
             print(f"Created folder: {folder_name} (ID: {folder.get('id')})")
             return folder.get('id')
@@ -108,10 +107,10 @@ class DriveDataBase:
             }
             media = MediaFileUpload(file_path, resumable=True)
             print(f"Uploading: {file_name}...")
-            uploaded_file = self.service.files().create(
-                body       = file_metadata,
-                media_body = media,
-                fields     = 'id, name, webViewLink'
+            uploaded_file   = self.service.files().create(
+                body        = file_metadata,
+                media_body  = media,
+                fields      = 'id, name, webViewLink'
             ).execute()
             filename = uploaded_file.get('name')
             print(f"Uploaded: {filename}")
@@ -139,9 +138,9 @@ class DriveDataBase:
         Recursively upload folder to Google Drive.
         Old code returned only the last item — now returns upload count.
         """
-        uploaded_count = 0
+        uploaded_count  = 0
         try:
-            items = os.listdir(local_path)
+            items       = os.listdir(local_path)
             for item in items:
                 item_path = os.path.join(local_path, item)
                 if os.path.isdir(item_path):
@@ -156,7 +155,6 @@ class DriveDataBase:
                         uploaded_count += 1
         except Exception as e:
             print(f"Error in folder upload: {e}")
-
         return uploaded_count
 
     def upload_asset_folder(self):
@@ -165,13 +163,12 @@ class DriveDataBase:
             creds        = self._authenticate()
             self.service = build("drive", "v3", credentials=creds)
             print(f"Starting upload of: {self.folder}")
-
             if not os.path.exists(self.folder):
                 print(f"Error: {self.folder} does not exist!")
                 return
-            main_folder_name = os.path.basename(self.folder)
-            main_folder_id   = self._create_folder(main_folder_name, GOOGLE_DRIVE_PARENT_FOLDER_ID)
-            total_uploaded = self._upload_folder(self.folder, main_folder_id)
+            main_folder_name    = os.path.basename(self.folder)
+            main_folder_id      = self._create_folder(main_folder_name, GOOGLE_DRIVE_PARENT_FOLDER_ID)
+            total_uploaded      = self._upload_folder(self.folder, main_folder_id)
             print(f"[Upload] Total files uploaded this run: {total_uploaded}")
             return total_uploaded
         except Exception as e:
